@@ -1,0 +1,17 @@
+# generated images (recreated by running the task scripts)
+output/
+
+# LaTeX build files
+report/*.aux
+report/*.log
+report/*.out
+report/*.fls
+report/*.fdb_latexmk
+report/*.synctex.gz
+
+# python / macOS
+__pycache__/
+*.pyc
+.DS_Store
+
+task4.py
