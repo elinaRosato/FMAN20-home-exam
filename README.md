@@ -11,7 +11,7 @@ Elina Rosato. The full solution, with figures and explanations, is in **`report/
 | 3 | Find the shadow that belongs to the man in `icecream_exam.jpg` | Threshold the purple shadows and the background, scale each silhouette to a square and compare with a distance-based mismatch score (silhouette E). | `task3.py`, report section 3 |
 | 3 (extra) | Same, but without using the man | Compare each shadow with the average of the six shadows. | `task3_average.py`, report section 3 |
 | 4 | Parameters and receptive field of a small CNN | Counted by hand: 7365 parameters, receptive field 18x18. | Report section 4 only (no code) |
-| 5 | Reconstruct the missing red channel of `cars_sm_2.png` from `cars_sm_1.png` | Regression from (G, B) to R: linear regression, RANSAC and k-NN (with Gaussian or anisotropic-diffusion denoising), compared with k-fold cross-validation and a test set; the final result averages linear regression and the denoised k-NN. | `task5.py`, report section 5 |
+| 5 | Reconstruct the missing red channel of `cars_sm_2.png` from `cars_sm_1.png` | Regression from (G, B) to R: linear regression and k-NN (with Gaussian or anisotropic-diffusion denoising), compared with k-fold cross-validation and a test set; the final result averages linear regression and the denoised k-NN. | `task5.py`, report section 5 |
 | 6 | Find the way from START to the rocket in `moon_exam.jpg`, following the arrows and avoiding the craters | Craters by RANSAC ellipse fitting, arrows by blobs and PCA, footprints by colour, nodes from the grown footprint and arrow-end areas, then a directed graph and breadth-first search (25 steps). | `task6.py`, report section 6 |
 
 ## Running the code

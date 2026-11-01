@@ -9,7 +9,7 @@ def main():
     """Find the man's shadow WITHOUT using the man: the true silhouette should be the one closest to the average
     of the six silhouettes (the wrong ones are variations of it, each different in a different place)."""
     here = os.path.dirname(os.path.abspath(__file__))
-    image_name = 'icecream_exam_2.jpg'      # or 'icecream_exam.jpg'
+    image_name = 'icecream_exam_2.jpg'      # 'icecream_exam.jpg' or 'icecream_exam_2.jpg'
     out_dir = os.path.join(here, 'output', 'task3_average', os.path.splitext(image_name)[0])
     os.makedirs(out_dir, exist_ok=True)
 

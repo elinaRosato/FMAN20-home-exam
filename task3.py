@@ -37,8 +37,8 @@ def hsv_threshold_regions(img_bgr, img_hsv, lower_threshold, upper_threshold, mi
 
 
 def blob_to_square(mask, size=256):
-    """Crop a blob to its bounding box, scale the longest side to `size` and pad with zeros to a size x size
-    square. Keeps the proportions, so the Jaccard score reflects the shape and not a stretched version of it."""
+    """Crop a blob to its bounding box, scale the longest side to `size` 
+    and pad with zeros to a size x size square. """
     ys, xs = np.where(mask > 0)
     crop = mask[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     h, w = crop.shape
@@ -115,11 +115,8 @@ def main():
     shadows = np.isin(shadow_cc, shadow_blobs).astype(np.uint8) * 255
     save_image(out_dir, "shadows.png", shadows)
 
-    # --- The man (reference silhouette) ---
-    # Background = the pale, low-saturation green of the page. min_area is larger than the island formed by the
-    # man's green shorts, so the shorts are not kept as background.
-    background_mask = hsv_threshold_regions(img_bgr, img_hsv, np.array([15, 10, 140]), np.array([75, 95, 230]),
-                                            100000, "background", out_dir)
+    # The man
+    background_mask = hsv_threshold_regions(img_bgr, img_hsv, np.array([15, 10, 140]), np.array([75, 95, 230]), 100000, "background", out_dir)
 
     # Everything that is not background: the man, the silhouettes, the letters, the title, the corner icons
     not_background = cv2.bitwise_not(background_mask)
@@ -132,7 +129,7 @@ def main():
     save_image(out_dir, "man_3_silhouette.png", man_mask)
     save_image(out_dir, "man_without_bg.png", img_bgr * (man_mask[:, :, None] > 0))
 
-    # --- Find the matching shadow ---
+    # Find the matching shadow
     penalties = find_matching_shadow(man_mask, shadow_cc, shadow_blobs, out_dir)
 
     print("Mismatch penalty of each shadow against the man (lower = better match):")

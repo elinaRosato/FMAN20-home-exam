@@ -21,32 +21,12 @@ def gb_features(g, b):
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# The three methods. Each learns from (features, red) of image 1 and returns a function that predicts red.
+# The two methods. Each learns from (features, red) of image 1 and returns a function that predicts red.
 # ---------------------------------------------------------------------------------------------------------------
 def fit_linear(X, y):
     """Least squares fit of R = a*G + b*B + c."""
     w, *_ = np.linalg.lstsq(X, y, rcond=None)
     return lambda Xq: Xq @ w
-
-
-def fit_ransac(X, y, threshold=10, iterations=500, seed=0):
-    """RANSAC fit of R = a*G + b*B + c. Three random pixels define a candidate plane. A pixel is an inlier if its red
-    is within `threshold` of the plane. The plane with the most inliers wins, and the final fit is a least squares fit
-    to the inliers only, so the pixels where (G, B) says little about R (like the red cars) do not pull the fit."""
-    rng = np.random.default_rng(seed)
-    subset = rng.choice(len(y), min(50000, len(y)), replace=False)       # the inliers are counted on a subset (faster)
-    best_count, best_w = -1, None
-    for _ in range(iterations):
-        sample = rng.choice(subset, 3, replace=False)
-        try:
-            w = np.linalg.solve(X[sample], y[sample])
-        except np.linalg.LinAlgError:                                      # the three pixels are on a line
-            continue
-        count = (np.abs(X[subset] @ w - y[subset]) < threshold).sum()
-        if count > best_count:
-            best_count, best_w = count, w
-    inliers = np.abs(X @ best_w - y) < threshold
-    return fit_linear(X[inliers], y[inliers])
 
 
 def fit_knn(X, y, k=50, step=3):
@@ -69,10 +49,6 @@ def fit_knn(X, y, k=50, step=3):
 
 # method = (name, features, fit)
 LINEAR = ("linear", linear_features, fit_linear)
-
-
-def ransac_method(threshold):
-    return ("ransac", linear_features, lambda X, y: fit_ransac(X, y, threshold=threshold))
 
 
 def knn_method(k):
@@ -165,7 +141,7 @@ def save_splits(out_dir, img1, split):
     save_image(out_dir, "splits.png", np.vstack([np.hstack(tiles[:3]), np.hstack(tiles[3:])]))
 
 
-def choose_settings(img1, out_dir, thresholds=(5, 10, 20, 40, 80), ks=(5, 10, 25, 50, 100, 200, 400, 800),
+def choose_settings(img1, out_dir, ks=(5, 10, 25, 50, 100, 200, 400, 800),
                     sigmas=(0.3, 0.5, 0.7, 1, 1.5, 2),
                     iterations=(1, 2, 3, 5), kappas=(60, 100, 150, 200, 300)):
     """Choose k and the strength of the noise reduction with 5-fold cross-validation on the development part of image 1
@@ -180,13 +156,6 @@ def choose_settings(img1, out_dir, thresholds=(5, 10, 20, 40, 80), ks=(5, 10, 25
 
     linear = fold_predictions(LINEAR, b1, g1, r1, split)
     print(f"Linear regression (nothing to choose), cross-validation: RMSE {rmse(linear, r1, development):.2f}")
-    print("RANSAC, 5-fold cross-validation, inlier threshold:")
-    by_threshold = {t: fold_predictions(ransac_method(t), b1, g1, r1, split) for t in thresholds}
-    for t in thresholds:
-        print(f"  threshold = {t:3d}: RMSE {rmse(by_threshold[t], r1, development):5.2f}")
-    best_threshold = min(thresholds, key=lambda t: rmse(by_threshold[t], r1, development))
-    print(f"  -> threshold = {best_threshold}")
-
     print("k nearest neighbours, 5-fold cross-validation (no noise reduction):")
     by_k = {k: fold_predictions(knn_method(k), b1, g1, r1, split) for k in ks}
     for k in ks:
@@ -208,7 +177,6 @@ def choose_settings(img1, out_dir, thresholds=(5, 10, 20, 40, 80), ks=(5, 10, 25
 
     # The methods with the chosen settings, on the test set
     tested = {"linear": linear,
-              "ransac": by_threshold[best_threshold],
               "knn": base,
               "knn_gaussian": gaussian[best_sigma],
               "knn_anisotropic": anisotropic[best_aniso]}
@@ -222,7 +190,7 @@ def choose_settings(img1, out_dir, thresholds=(5, 10, 20, 40, 80), ks=(5, 10, 25
                 if test[y, x]:
                     cv2.rectangle(image, (x, y), (x + 41, y + 41), (255, 255, 255), 1)
         save_image(out_dir, f"test_{name}.png", image)
-    return best_threshold, best_k, best_sigma, best_aniso
+    return best_k, best_sigma, best_aniso
 
 
 def main():
@@ -239,12 +207,12 @@ def main():
     save_image(out_dir, "image2_given.png", img2)
 
     # Choose k and the noise reduction on image 1, where the red channel is known
-    best_threshold, best_k, best_sigma, (iterations, kappa) = choose_settings(img1, out_dir)
+    best_k, best_sigma, (iterations, kappa) = choose_settings(img1, out_dir)
 
     # The colour of a car does not depend on where it is in the image, so what is learned from image 1 can be used
     # on image 2 without aligning the images. Here the methods learn from all of image 1.
     reds = {}
-    for method in (LINEAR, ransac_method(best_threshold), knn_method(best_k)):
+    for method in (LINEAR, knn_method(best_k)):
         reds[method[0]] = predict_red(method, (b1, g1, r1), (b2, g2))
         save_image(out_dir, f"image2_R_{method[0]}.png", reds[method[0]].astype(np.uint8))
         save_image(out_dir, f"image2_corrected_{method[0]}.png", to_bgr(b2, g2, reds[method[0]]))
@@ -257,8 +225,7 @@ def main():
         save_image(out_dir, f"image2_R_{name}.png", reds[name].astype(np.uint8))
         save_image(out_dir, f"image2_corrected_{name}.png", to_bgr(b2, g2, reds[name]))
 
-    # Average of the red channels of the denoised k-NN (anisotropic) and linear regression (RANSAC is left out: it was
-    # the worst method)
+    # Average of the red channels of the denoised k-NN (anisotropic) and linear regression
     reds["average"] = np.mean([reds["linear"], reds["knn_anisotropic"]], axis=0)
     save_image(out_dir, "image2_R_average.png", reds["average"].astype(np.uint8))
     save_image(out_dir, "image2_corrected_average.png", to_bgr(b2, g2, reds["average"]))

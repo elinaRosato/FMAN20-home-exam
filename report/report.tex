@@ -572,7 +572,7 @@ This means that each output value of max pooling 2 is influenced by an $18\times
 \section{Task 5: Finding the missing red channel}
 %==============================================================
 
-Two images of the same scene with toy cars are given. The first is complete. In the second, taken from a different position, the red channel is zero, so only green and blue are available, and the task is to estimate the red channel of the second image automatically. The colour of an object does not depend on where it is in the image: a red car is red in both images. So the relation between the green and blue values of a pixel and its red value can be learned from image 1 and applied to image 2. Every pixel of image 1 is a training example, with $(G, B)$ as input and the known $R$ as the answer. We tried three methods, linear regression, RANSAC and k nearest neighbours. The red channel from k-NN was noisy, so we added a noise reduction step and tried two filters, a Gaussian filter and anisotropic diffusion. Finally we averaged the red channels of linear regression and the denoised k-NN.
+Two images of the same scene with toy cars are given. The first is complete. In the second, taken from a different position, the red channel is zero, so only green and blue are available, and the task is to estimate the red channel of the second image automatically. The colour of an object does not depend on where it is in the image: a red car is red in both images. So the relation between the green and blue values of a pixel and its red value can be learned from image 1 and applied to image 2. Every pixel of image 1 is a training example, with $(G, B)$ as input and the known $R$ as the answer. We tried two methods, linear regression and k nearest neighbours. The red channel from k-NN was noisy, so we added a noise reduction step and tried two filters, a Gaussian filter and anisotropic diffusion. Finally we averaged the red channels of linear regression and the denoised k-NN.
 
 \begin{figure}[H]
     \centering
@@ -599,20 +599,6 @@ The test set is never used for learning or for choosing settings. It is used onc
 
 Linear regression assumes that the red value is a linear combination of the green and blue values, $R \approx a\,G + b\,B + c$, and finds $a$, $b$ and $c$ with least squares on all pixels of image 1. The result is $R = 1.13\,G - 0.41\,B + 52.3$. For image 2 we compute $\hat R$ from its green and blue values and clip it to $[0, 255]$. It has no setting to choose, and its cross-validation error is RMSE 17.33.
 
-The linear model is pulled away from the majority of the pixels by the pixels where green and blue say little about red, for example the red cars. RANSAC fits the same model but ignores such pixels. Three random pixels define a candidate plane for $R$, a pixel is an inlier if its red value is within a threshold of the plane, and the plane with the most inliers out of 500 attempts is kept. The final parameters are a least squares fit to the inliers only. We chose the threshold with cross-validation:
-
-\begin{center}
-\begin{tabular}{lccccc}
-\toprule
-Threshold & 5 & 10 & 20 & 40 & \textbf{80} \\
-\midrule
-RMSE & 21.13 & 21.62 & 18.13 & 17.43 & \textbf{17.32} \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-With a small threshold RANSAC only fits the pixels that follow one plane closely, and the pixels that do not follow it get large errors, so the RMSE is large. When the threshold grows, RANSAC includes more and more pixels and becomes the ordinary linear regression. The smallest RMSE is at the largest threshold we tried, 80, where the result is practically the same as linear regression (17.32 against 17.33), so for this data RANSAC does not improve on the linear model, and we used 80.
-
 A linear model cannot represent that very different reds share a similar $(G, B)$, so we also tried k nearest neighbours, which makes no assumption about the form of the relation. For a pixel of image 2 it finds the $k$ pixels of image 1 with the most similar $(G, B)$ and averages their red values with weights $1/d^2$, where $d$ is the distance in $(G, B)$.  We tried $k$ from 5 to 800 with cross-validation:
 
 \begin{center}
@@ -625,7 +611,7 @@ RMSE & 14.11 & 13.91 & 13.84 & \textbf{13.82} & \textbf{13.82} & 13.83 & 13.85 &
 \end{tabular}
 \end{center}
 
-The error is almost the same for $k = 50$, 100 and 200 and the curve is flat from $k = 25$ to $k = 400$ (RMSE 13.82--13.85), so the choice of $k$ is not sensitive. We used $k = 100$, in the middle of the flat part. The figure shows image 2 with the red channel from the three methods. Linear regression and RANSAC turn the red car dark brown and the pink car dark purple. k-NN gives the red stripes on the yellow car and the pink car a red colour, but it leaves the red car brown. It also gives the wall a cyan tint: the green and blue values of the wall in image 2 are not the same as in image 1, so the neighbours that k-NN finds are not wall pixels.
+The error is almost the same for $k = 50$, 100 and 200 and the curve is flat from $k = 25$ to $k = 400$ (RMSE 13.82--13.85), so the choice of $k$ is not sensitive. We used $k = 100$, in the middle of the flat part. The figure shows image 2 with the red channel from the two methods. Linear regression turns the red car dark brown and the pink car dark purple. k-NN gives the red stripes on the yellow car and the pink car a red colour, but it leaves the red car brown. It also gives the wall a cyan tint: the green and blue values of the wall in image 2 are not the same as in image 1, so the neighbours that k-NN finds are not wall pixels.
 
 \begin{figure}[H]
     \centering
@@ -634,14 +620,10 @@ The error is almost the same for $k = 50$, 100 and 200 and the curve is flat fro
         \caption{Linear regression}
     \end{subfigure}
     \begin{subfigure}{0.32\textwidth}
-        \includegraphics[width=\textwidth]{t5_ransac.png}
-        \caption{RANSAC}
-    \end{subfigure}
-    \begin{subfigure}{0.32\textwidth}
         \includegraphics[width=\textwidth]{t5_knn.png}
         \caption{k nearest neighbours}
     \end{subfigure}
-    \caption{Image 2 with the red channel estimated by the three methods. RANSAC with threshold 80 looks the same as linear regression.}
+    \caption{Image 2 with the red channel estimated by the two methods.}
 \end{figure}
 
 The red channel from k-NN is noisy: pixels with almost the same green and blue values can get quite different red values, which gives a grainy texture, as the zoom below shows. Since the true red channel of an object is smooth except at its edges, we filtered the result of the k-NN. A Gaussian filter removes the noise but blurs everything in the same way, including the edges of the cars. Anisotropic diffusion smooths where the red channel is flat and stops at the edges. We chose the strength of both filters with the same cross-validation, on the result of the k-NN with $k = 100$, which has RMSE 13.82 before filtering.
@@ -696,7 +678,7 @@ For both filters the error first decreases and then increases when the filtering
     \caption{Image 2 with the denoised red channel.}
 \end{figure}
 
-The methods make different errors: linear regression is good for the common colours and bad for the red cars, and k-NN is better for the red cars. We therefore averaged the red channels of linear regression and the denoised k-NN (anisotropic diffusion), and combined the average with the green and blue channels of image 2. RANSAC was left out, since it gave the same result as linear regression. The red stripes on the yellow car and the pink car keep a red tone, and the cyan tint of the wall is weaker than with k-NN alone. But the average also dilutes the red of k-NN with the values of the linear model, so the pink car is darker and more purple than with k-NN.
+The methods make different errors: linear regression is good for the common colours and bad for the red cars, and k-NN is better for the red cars. We therefore averaged the red channels of linear regression and the denoised k-NN (anisotropic diffusion), and combined the average with the green and blue channels of image 2. The red stripes on the yellow car and the pink car keep a red tone, and the cyan tint of the wall is weaker than with k-NN alone. But the average also dilutes the red of k-NN with the values of the linear model, so the pink car is darker and more purple than with k-NN.
 
 \begin{figure}[H]
     \centering
@@ -712,7 +694,6 @@ Finally we compared the methods on the test set. With the chosen settings, each 
 Method & RMSE \\
 \midrule
 Linear regression & 17.91 \\
-RANSAC (threshold 80) & 17.94 \\
 k-NN ($k = 100$) & 14.69 \\
 k-NN, Gaussian filter ($\sigma = 0.7$) & \textbf{13.24} \\
 k-NN, anisotropic diffusion (2 iterations, $\kappa = 100$) & 13.33 \\
@@ -721,9 +702,9 @@ Average (linear regression, denoised k-NN) & 14.47 \\
 \end{tabular}
 \end{center}
 
-k-NN is clearly better than linear regression and RANSAC, and the filtering improves its RMSE. RANSAC is the same as linear regression, as the cross-validation showed. The average is better than linear regression but worse than the denoised k-NN alone. 
+k-NN is clearly better than linear regression, and the filtering improves its RMSE. The average is better than linear regression but worse than the denoised k-NN alone. 
 
-All three methods use only the green and blue value of one pixel, and this does not determine the red value. A better result needs information that is not in the colour of one pixel, for example the surroundings of the pixel, or a match between the two images that lets the red channel be copied from image 1.
+Both methods use only the green and blue value of one pixel, and this does not determine the red value. A better result needs information that is not in the colour of one pixel, for example the surroundings of the pixel, or a match between the two images that lets the red channel be copied from image 1.
 
 
 \section{Task 6: Finding the way to the rocket}
