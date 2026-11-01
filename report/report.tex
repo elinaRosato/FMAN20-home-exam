@@ -711,7 +711,7 @@ Both methods use only the green and blue value of one pixel, and this does not d
 
 The idea is to turn the picture into a directed graph and search it. The nodes are the places where arrows and footprints meet, each arrow is an edge from the node at its tail to the node at its head, and the craters tell which nodes are not allowed.
 
-\textbf{Craters.} The craters are dark ellipse-shaped outlines. We threshold the dark ink, keep the large blobs and fit ellipses to their outlines with RANSAC. The ellipses are constrained to the shape of a crater (size, aspect ratio and tilt), and we only accept an ellipse if it covers enough of the outline and has the orange colour of the crater inside. The ellipses are enlarged a little to cover the whole outline. This gave 10 craters.
+\textbf{Craters.} The craters are dark ellipse-shaped outlines. We threshold the dark ink, keep the large blobs and fit ellipses to their outlines with RANSAC. The ellipses are constrained to the shape of a crater (size, aspect ratio and tilt), and we only accept an ellipse if it covers enough of the outline. The ellipses are enlarged a little to cover the whole outline. This gave 10 craters.
 
 \begin{figure}[H]
     \centering

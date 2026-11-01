@@ -102,33 +102,17 @@ def find_craters(img_bgr, out_dir):
             cv2.ellipse(fitted, ellipse, (255, 0, 255), 3)
     save_image(out_dir, "03_fitted_ellipses.png", fitted)
 
-    # 4. Keep the ellipses that have some of the colour of a crater inside (orange-brown, hue 17 to 26). The ellipses
-    #    that were fitted to the rocket, the planet ring and the text have none of it (0 %), the craters have 9 to 76 %
-    #    (the alien covers much of some craters).
-    crater_colour = cv2.inRange(hsv, (17, 100, 150), (26, 255, 255))
-    kept = []
-    for ellipse in sorted(ellipses, key=lambda e: -e[1][0] * e[1][1]):          # biggest first
-        inside = np.zeros((h, w), np.uint8)
-        cv2.ellipse(inside, ellipse, 255, -1)
-        share = (crater_colour[inside > 0] > 0).mean()
-        (cx, cy) = ellipse[0]
-        # an ellipse inside an ellipse that is already kept (the swirls inside a crater) is not a new crater
-        in_kept = any(cv2.pointPolygonTest(cv2.ellipse2Poly((int(k[0][0]), int(k[0][1])), (int(k[1][0] / 2), int(k[1][1] / 2)),
-                                                            int(k[2]), 0, 360, 5).reshape(-1, 1, 2), (float(cx), float(cy)), False) > 0
-                      for k in kept)
-        if share >= 0.05 and not in_kept:
-            kept.append(ellipse)
-    # 5. A margin, so that the whole crater with its rim is covered
+    # 4. A margin, so that the whole crater with its rim is covered
     craters = np.zeros((h, w), np.uint8)
     overlay = img_bgr.copy()
-    for (centre, (d1, d2), angle) in kept:
+    for (centre, (d1, d2), angle) in ellipses:
         enlarged = (centre, (d1 * 1.1 + 8, d2 * 1.1 + 8), angle)
         cv2.ellipse(craters, enlarged, 255, -1)
         cv2.ellipse(overlay, enlarged, (255, 0, 255), 3)
     save_image(out_dir, "04_craters.png", craters)
     save_image(out_dir, "05_craters_on_image.png", overlay)
-    print(f"Found {len(kept)} craters")
-    return kept, craters
+    print(f"Found {len(ellipses)} craters")
+    return ellipses, craters
 
 
 def find_arrows(img_bgr, out_dir):
@@ -145,17 +129,16 @@ def find_arrows(img_bgr, out_dir):
     ground[int(0.26 * h):] = True
     ground[:, :int(0.03 * w)] = False
 
-    # 1. The dark ink, with a threshold on the gray level (a threshold on the saturation gives a speckled mask, because the
-    #    grey-blue ink of the arrows has a varying saturation). The closing fills the small holes, and the opening removes
-    #    the thin lines of the stones and the boot prints that touch the arrows and would make them look wider at one end.
+    # 1. The dark ink, with a threshold on the gray level. The closing fills the small holes, and the opening removes
+    # the thin unwanted lines
     ink = ((gray < 130) & ground).astype(np.uint8)
     ink = cv2.morphologyEx(ink, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     ink = cv2.morphologyEx(ink, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
     save_image(out_dir, "06_dark_ink_mask.png", ink * 255)
 
     # 2. One blob per arrow. Blobs that are too small (specks) or too big (the text) are not arrows, and an arrow lies on
-    #    the yellow ground, so the ring just around a blob must be mostly yellow (this removes the aliens in the craters,
-    #    the rocket and the outlines of the boot prints and stones, which are surrounded by other colours)
+    # the yellow ground, so the ring just around a blob must be mostly yellow (this removes the aliens in the craters,
+    # the rocket and the outlines of the boot prints and stones, which are surrounded by other colours)
     yellow = cv2.inRange(hsv, (25, 90, 200), (36, 255, 255)) > 0
     n, labels, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     arrows, blobs, kept_labels = [], img_bgr.copy(), []
@@ -193,7 +176,7 @@ def find_arrows(img_bgr, out_dir):
     save_image(out_dir, "08_arrow_mask.png", mask)
 
     # 3. The arrows drawn with their direction: a line from the tail (blue dot) to the head (red dot). The arrows where
-    #    the two ends are nearly equal (ratio below 1.15) are drawn in orange.
+    # the two ends are nearly equal (ratio below 1.15) are drawn in orange.
     drawn = img_bgr.copy()
     for tail, head, ratio in arrows:
         cv2.line(drawn, tuple(int(v) for v in tail), tuple(int(v) for v in head), (0, 160, 0) if ratio >= 1.15 else (0, 140, 255), 2)
